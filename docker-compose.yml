@@ -1,0 +1,15 @@
+version: '3.7'
+
+services:
+  ethereum-tx-app:
+    image: ethereum-tx-app
+    build:
+      context: ./
+      dockerfile: ./docker/Dockerfile
+      args:
+        - USER_ID
+        - GROUP_ID
+    container_name: ethereum-tx-app
+    restart: unless-stopped
+    volumes:
+      - ./:/srv/app

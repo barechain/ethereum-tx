@@ -1,0 +1,20 @@
+#!/usr/bin/env php
+<?php
+
+require dirname(__DIR__) .'/vendor/autoload.php';
+
+function dd(...$args)
+{
+    var_dump(...$args);
+    die();
+}
+
+if (empty($argv[1])) {
+    throw new InvalidArgumentException('First argument is required.');
+}
+
+$rawTx = $argv[1];
+
+$tx = \Barechain\EthereumTx\Transaction::fromSerializedTx($rawTx);
+
+dd($tx);

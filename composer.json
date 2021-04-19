@@ -1,0 +1,35 @@
+{
+    "name": "barechain/ethereum-tx",
+    "type": "library",
+    "description": "Ethereum transaction library in PHP.",
+    "keywords": [
+        "ethereum",
+        "transaction"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "uranoff235",
+            "email": "uranoff235@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^7.4|8.*",
+        "barechain/rlp": "1.*",
+        "kornrunner/keccak": "~1",
+        "simplito/elliptic-php": "~1.0.6"
+    },
+    "require-dev": {
+        "psy/psysh": "^0.10.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "Barechain\\EthereumTx\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
+    }
+}

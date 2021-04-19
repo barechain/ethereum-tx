@@ -1,0 +1,10 @@
+#!/usr/bin/env php
+<?php
+
+require dirname(__DIR__) .'/vendor/autoload.php';
+
+$parameters = array_slice($argv, 1);
+
+$tx = new \Barechain\EthereumTx\Transaction($parameters);
+
+var_dump($tx->getTxData());
