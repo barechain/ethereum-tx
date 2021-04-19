@@ -15,9 +15,9 @@ class Transaction implements ArrayAccess
     private ?string $to;
     private string $value;
     private string $data;
-    private string $v;
-    private string $r;
-    private string $s;
+    private ?string $v;
+    private ?string $r;
+    private ?string $s;
 
     protected RLP $rlp;
     protected EC $ec;
@@ -26,8 +26,9 @@ class Transaction implements ArrayAccess
      * Transaction constructor
      *
      * @param array $txData
+     * @param int $chainId
      */
-    public function __construct(array $txData = [])
+    public function __construct(array $txData = [], int $chainId = 1)
     {
         $this->initDependencies();
 
@@ -102,7 +103,7 @@ class Transaction implements ArrayAccess
 
         $txData = array_combine(
             ['nonce', 'gasPrice', 'gasLimit', 'to', 'value', 'data', 'v', 'r', 's'],
-            array_pad($values, 9, null)
+            array_pad($values, 9, '')
         );
 
         return new self($txData);
