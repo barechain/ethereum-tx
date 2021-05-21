@@ -2,13 +2,18 @@
 
 namespace Barechain\EthereumTx;
 
-use {ArrayAccess, InvalidArgumentException, RuntimeException};
+use RuntimeException;
 use Barechain\RLP\RLP;
 use Elliptic\EC;
 use Elliptic\EC\KeyPair;
 
-class Transaction implements ArrayAccess
+class Transaction
 {
+    private const TX_FIELDS =  ['nonce', 'gasPrice', 'gasLimit', 'to', 'value', 'data', 'v', 'r', 's'];
+
+    // secp256k1n/2
+    private const N_DIV_2 = '0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0';
+
     private string $nonce;
     private string $gasPrice;
     private string $gasLimit;
@@ -19,8 +24,11 @@ class Transaction implements ArrayAccess
     private ?string $r;
     private ?string $s;
 
-    protected RLP $rlp;
-    protected EC $ec;
+    private int $chainId;
+
+    private EC $ec;
+    private RLP $rlp;
+    private Utils $utils;
 
     /**
      * Transaction constructor
@@ -32,62 +40,118 @@ class Transaction implements ArrayAccess
     {
         $this->initDependencies();
 
-        foreach ($txData as $key => $data) {
-            $this->offsetSet($key, $data);
-        }
+        $this->chainId = $chainId;
+        $this->validateRequired($txData);
+        $this->setupFields($txData);
     }
 
+    /**
+     * Get tx field
+     *
+     * @param string $name
+     * @return mixed
+     */
     public function __get(string $name)
     {
-        $method = 'get' . ucfirst($name);
-
-        if (method_exists($this, $method)) {
-            return call_user_func_array([$this, $method], []);
+        if (!in_array($name, self::TX_FIELDS)) {
+            throw new \RuntimeException("Transaction field {$name} not exists");
         }
+
+        return $this->{$name};
     }
 
-    public function __set(string $name, $value)
+    /**
+     * Convert to array
+     *
+     * @return array
+     */
+    public function toArray(): array
     {
-        $method = 'set' . ucfirst($name);
+        $txData = [];
 
-        if (method_exists($this, $method)) {
-            return call_user_func_array([$this, $method], [$value]);
+        foreach (self::TX_FIELDS as $field) {
+            $txData[$field] = $this->{$field};
         }
+
+        return $txData;
     }
 
+    /**
+     * Check if tx is signed
+     *
+     * @return bool
+     */
+    public function isSigned(): bool
+    {
+        return $this->v && $this->r && $this->s;
+    }
+
+    /**
+     * Get tx hash
+     *
+     * @param bool $signed
+     * @return string
+     */
+    public function hash(bool $signed = false): string
+    {
+        $txData = $this->toArray();
+
+        $txData['r'] = $this->utils->append0xPrefix(gmp_strval($txData['r'], 16));
+        $txData['s'] = $this->utils->append0xPrefix(gmp_strval($txData['s'], 16));
+
+        if (!$signed) {
+            unset($txData['v'], $txData['r'], $txData['s']);
+
+            if ($this->signedTxImplementsEIP155()) {
+                $txData['v'] = $this->chainId;
+                $txData['r'] = '';
+                $txData['s'] = '';
+            }
+        }
+
+        $serializedTx = $this->rlp->encode($txData)->__toString();
+
+        return $this->utils->sha3(hex2bin($serializedTx));
+    }
+
+    /**
+     * Get tx hash
+     *
+     * @return string
+     */
     public function __toString(): string
     {
+        return $this->hash($this->isSigned());
+    }
+
+    /**
+     * Get sender address
+     *
+     * @return string
+     */
+    public function getSenderAddress(): string
+    {
+        return $this->utils->publicKeyToAddress($this->getSenderPublicKey());
+    }
+
+    public function serialize()
+    {
         return '';
-//        return $this->hash(false);
     }
 
-    public function offsetExists($offset): bool
+    public function sign(string $privateKey): string
     {
-
-    }
-
-    public function offsetGet($offset)
-    {
-
-    }
-
-    public function offsetSet($offset, $value)
-    {
-
-    }
-
-    public function offsetUnset($offset): void
-    {
-
+        return '';
     }
 
     /**
      * Instantiate transaction from the serialized tx
      *
      * @param string $serializedTx
+     * @param int $chainId
      * @return static
      */
-    public static function fromSerializedTx(string $serializedTx): self
+    public static function fromSerializedTx(string $serializedTx, int $chainId = 1): self
     {
         $values = (new RLP())->decode($serializedTx);
 
@@ -101,10 +165,9 @@ class Transaction implements ArrayAccess
             );
         }
 
-        $txData = array_combine(
-            ['nonce', 'gasPrice', 'gasLimit', 'to', 'value', 'data', 'v', 'r', 's'],
-            array_pad($values, 9, '')
-        );
+        $stringValues = array_map(fn ($item) => $item->__toString(), $values);
+
+        $txData = array_combine(self::TX_FIELDS, array_pad($stringValues, 9, ''));
 
         return new self($txData);
     }
@@ -114,7 +177,102 @@ class Transaction implements ArrayAccess
      */
     private function initDependencies()
     {
-        $this->rlp = new RLP();
         $this->ec = new EC('secp256k1');
+        $this->rlp = new RLP();
+        $this->utils = new Utils();
+    }
+
+    /**
+     * Setup fields
+     *
+     * @param array $txData
+     */
+    private function setupFields(array $txData): void
+    {
+        $this->nonce = $this->utils->append0xPrefix($txData['nonce']);
+        $this->gasPrice = $this->utils->append0xPrefix($txData['gasPrice']);
+        $this->gasLimit = $this->utils->append0xPrefix($txData['gasLimit']);
+        $this->to = !empty($txData['to']) ? $this->utils->append0xPrefix($txData['to']) : '';
+        $this->value = $this->utils->append0xPrefix($txData['value']);
+        $this->data = !empty($txData['data']) ?
+            $this->utils->append0xPrefix($txData['data']) : '';
+
+        $this->v = !empty($txData['v']) ? $this->utils->append0xPrefix($txData['v']) : '';
+
+        $this->r = !empty($txData['r']) ?
+            $this->utils->append0xPrefix($this->utils->zeroLeftPad($txData['r'], 64)) : '';
+
+        $this->s = !empty($txData['s']) ?
+            $this->utils->append0xPrefix($this->utils->zeroLeftPad($txData['s'], 64)) : '';
+    }
+
+    /**
+     * Validate required fields
+     *
+     * @param array $txData
+     */
+    private function validateRequired(array $txData): void
+    {
+        foreach (['nonce', 'gasPrice', 'gasLimit', 'value'] as $field) {
+            if (empty($txData[$field])) {
+                throw new \RuntimeException("Field {$field} is required");
+            }
+        }
+    }
+
+    /**
+     * Check if raw tx is signed and implement EIP155
+     *
+     * @return bool
+     */
+    private function signedTxImplementsEIP155(): bool
+    {
+        if (!$this->isSigned()) {
+            throw new RuntimeException('This transaction is not signed');
+        }
+
+        $v = hexdec($this->v);
+
+        // EIP155 spec
+        return $v === ($this->chainId * 2 + 35) || $v === ($this->chainId * 2 + 36);
+    }
+
+    /**
+     * Get sender publicKey
+     *
+     * @return string
+     */
+    private function getSenderPublicKey(): string
+    {
+        if (!$this->isSigned()) {
+            throw new RuntimeException('Missing values to derive sender public key from signed tx');
+        }
+
+        // All transaction signatures whose s-value is greater than secp256k1n/2 are considered invalid
+        if (gmp_cmp($this->s, self::N_DIV_2) === 1) {
+            throw new RuntimeException('Invalid Signature: s-values greater than secp256k1n/2 are considered invalid');
+        }
+
+        try {
+            return $this->utils->recoverPublicKey(
+                $this->hash(),
+                $this->r,
+                $this->s,
+                $this->calculateSigRecovery()
+            );
+        } catch (\Exception $e) {
+            throw new RuntimeException('Invalid Signature');
+        }
+    }
+
+    /**
+     * Calculate signature recovery
+     *
+     * @return int
+     */
+    private function calculateSigRecovery(): int
+    {
+        $v = hexdec($this->v);
+        return $this->signedTxImplementsEIP155() ? $v - (2 * $this->chainId + 35) : ($v - 27);
     }
 }

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8d1061318dc854897d7b75dab6b0d25f",
+    "content-hash": "d751ca2ed5c8f7d4eef6659efa2cb78f",
     "packages": [
         {
             "name": "barechain/rlp",
@@ -1264,7 +1264,8 @@
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": "^7.4|8.*"
+        "php": "^7.4|8.*",
+        "ext-gmp": "^7.4|8.*"
     },
     "platform-dev": [],
     "plugin-api-version": "2.0.0"

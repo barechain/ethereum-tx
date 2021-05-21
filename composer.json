@@ -15,6 +15,7 @@
     ],
     "require": {
         "php": "^7.4|8.*",
+        "ext-gmp": "^7.4|8.*",
         "barechain/rlp": "1.*",
         "kornrunner/keccak": "~1",
         "simplito/elliptic-php": "~1.0.6"

@@ -17,4 +17,4 @@ $rawTx = $argv[1];
 
 $tx = \Barechain\EthereumTx\Transaction::fromSerializedTx($rawTx);
 
-dd($tx);
+dd($tx->getSenderAddress());
