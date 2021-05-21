@@ -2,10 +2,7 @@
 
 namespace Barechain\EthereumTx;
 
-use RuntimeException;
 use Barechain\RLP\RLP;
-use Elliptic\EC;
-use Elliptic\EC\KeyPair;
 
 class Transaction
 {
@@ -26,7 +23,6 @@ class Transaction
 
     private int $chainId;
 
-    private EC $ec;
     private RLP $rlp;
     private Utils $utils;
 
@@ -134,14 +130,44 @@ class Transaction
         return $this->utils->publicKeyToAddress($this->getSenderPublicKey());
     }
 
-    public function serialize()
+    /**
+     * Return RLP encode tx
+     *
+     * @return string
+     */
+    public function serialize(): string
     {
-        return '';
+        $txData = $this->toArray();
+
+        $txData['r'] = $this->utils->append0xPrefix(gmp_strval($txData['r'], 16));
+        $txData['s'] = $this->utils->append0xPrefix(gmp_strval($txData['s'], 16));
+
+        if (!$this->isSigned()) {
+            unset($txData['v'], $txData['r'], $txData['s']);
+        }
+
+        return $this->rlp->encode($txData)->__toString();
     }
 
+    /**
+     * Sign tx with given hex encoded private key
+     *
+     * @param string $privateKey
+     * @return string
+     */
     public function sign(string $privateKey): string
     {
-        return '';
+        $signature = $this->utils->ecSign($privateKey, $this->hash());
+
+        unset($this->v, $this->r, $this->s);
+
+        $this->r = $this->utils->append0xPrefix($signature->r->toString(16));
+        $this->s = $this->utils->append0xPrefix($signature->s->toString(16));
+
+        $v = $signature->recoveryParam + $this->chainId * 2;
+        $this->v = $this->utils->append0xPrefix(dechex($v));
+
+        return $this->serialize();
     }
 
     /**
@@ -156,11 +182,11 @@ class Transaction
         $values = (new RLP())->decode($serializedTx);
 
         if (!is_array($values)) {
-            throw new RuntimeException('Invalid serialized tx input. Must be array.');
+            throw new \RuntimeException('Invalid serialized tx input. Must be array.');
         }
 
         if (count($values) !== 6 && count($values) !== 9) {
-            throw new RuntimeException(
+            throw new \RuntimeException(
                 'Invalid transaction. Only expecting 6 values (for unsigned tx) or 9 values (for signed tx).'
             );
         }
@@ -177,7 +203,6 @@ class Transaction
      */
     private function initDependencies()
     {
-        $this->ec = new EC('secp256k1');
         $this->rlp = new RLP();
         $this->utils = new Utils();
     }
@@ -228,7 +253,7 @@ class Transaction
     private function signedTxImplementsEIP155(): bool
     {
         if (!$this->isSigned()) {
-            throw new RuntimeException('This transaction is not signed');
+            throw new \RuntimeException('This transaction is not signed');
         }
 
         $v = hexdec($this->v);
@@ -245,12 +270,12 @@ class Transaction
     private function getSenderPublicKey(): string
     {
         if (!$this->isSigned()) {
-            throw new RuntimeException('Missing values to derive sender public key from signed tx');
+            throw new \RuntimeException('Missing values to derive sender public key from signed tx');
         }
 
         // All transaction signatures whose s-value is greater than secp256k1n/2 are considered invalid
         if (gmp_cmp($this->s, self::N_DIV_2) === 1) {
-            throw new RuntimeException('Invalid Signature: s-values greater than secp256k1n/2 are considered invalid');
+            throw new \RuntimeException('Invalid Signature: s-values greater than secp256k1n/2 are considered invalid');
         }
 
         try {
@@ -261,7 +286,7 @@ class Transaction
                 $this->calculateSigRecovery()
             );
         } catch (\Exception $e) {
-            throw new RuntimeException('Invalid Signature');
+            throw new \RuntimeException('Invalid Signature');
         }
     }
 

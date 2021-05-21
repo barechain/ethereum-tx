@@ -3,6 +3,7 @@
 namespace Barechain\EthereumTx;
 
 use Elliptic\EC;
+use Elliptic\EC\Signature;
 use kornrunner\Keccak;
 
 class Utils
@@ -167,5 +168,35 @@ class Utils
         $address = substr($this->sha3(substr(hex2bin($publicKey), 1)), 24);
 
         return $this->append0xPrefix($address);
+    }
+
+    /**
+     * Ecliptic sign
+     *
+     * @param string $privateKey
+     * @param string $message
+     * @return Signature
+     */
+    public function ecSign(string $privateKey, string $message): Signature
+    {
+        if (!$this->isHex($privateKey)) {
+            throw new \InvalidArgumentException('Invalid private key format.');
+        }
+
+        $privateKeyLength = strlen($this->strip0xPrefix($privateKey));
+
+        if ($privateKeyLength !== 64) {
+            throw new \InvalidArgumentException('Private key length was wrong.');
+        }
+
+        $signature = $this->secp256k1->keyFromPrivate($privateKey, 'hex')->sign($message, [
+            'canonical' => true
+        ]);
+
+        // Ethereum v is recovery param + 35
+        // Or recovery param + 35 + (chain id * 2)
+        $signature->recoveryParam += 35;
+
+        return $signature;
     }
 }

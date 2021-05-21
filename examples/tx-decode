@@ -3,18 +3,9 @@
 
 require dirname(__DIR__) .'/vendor/autoload.php';
 
-function dd(...$args)
-{
-    var_dump(...$args);
-    die();
-}
-
-if (empty($argv[1])) {
-    throw new InvalidArgumentException('First argument is required.');
-}
-
-$rawTx = $argv[1];
+$rawTx = '0xf86a188522ecb25c0082520894937af0972d40da28ee3f61200c8904b47b8185be8703f18a03b360008025a0236f50b38bc91b76a9d4f7d774bb76844d1b11169a557c871a9a3986fa1473b39f5177cadac4e35c94c580db126c77777433fb8a509cbf30b084b3082fbf44e7';
 
 $tx = \Barechain\EthereumTx\Transaction::fromSerializedTx($rawTx);
 
-dd($tx->getSenderAddress());
+// tx fields, tx hash and sender address
+var_dump($tx->toArray(), $tx->hash(true), $tx->getSenderAddress());
