@@ -1,0 +1,20 @@
+#!/usr/bin/env php
+<?php
+
+require dirname(__DIR__) .'/vendor/autoload.php';
+
+$parameters = [
+    'nonce' => '0x18',
+    'gasPrice' => '0x22ecb25c00',
+    'gasLimit' => '0x5208',
+    'to' => '0x937af0972d40da28ee3f61200c8904b47b8185be',
+    'value' => '0x03f18a03b36000',
+    'data' => '',
+    'v' => '0x25',
+    'r' => '0x236f50b38bc91b76a9d4f7d774bb76844d1b11169a557c871a9a3986fa1473b3',
+    's' => '0x005177cadac4e35c94c580db126c77777433fb8a509cbf30b084b3082fbf44e7'
+];
+
+$tx = new \Barechain\EthereumTx\Transaction($parameters);
+
+var_dump($tx->serialize());
