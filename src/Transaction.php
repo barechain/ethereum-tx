@@ -218,9 +218,10 @@ class Transaction
         $this->gasPrice = $this->utils->append0xPrefix($txData['gasPrice']);
         $this->gasLimit = $this->utils->append0xPrefix($txData['gasLimit']);
         $this->to = !empty($txData['to']) ? $this->utils->append0xPrefix($txData['to']) : '';
-        $this->value = $this->utils->append0xPrefix($txData['value']);
-        $this->data = !empty($txData['data']) ?
-            $this->utils->append0xPrefix($txData['data']) : '';
+
+        $this->value = !empty($txData['value']) ? $this->utils->append0xPrefix($txData['value']) : '';
+
+        $this->data = !empty($txData['data']) ? $this->utils->append0xPrefix($txData['data']) : '';
 
         $this->v = !empty($txData['v']) ? $this->utils->append0xPrefix($txData['v']) : '';
 
@@ -238,7 +239,7 @@ class Transaction
      */
     private function validateRequired(array $txData): void
     {
-        foreach (['nonce', 'gasPrice', 'gasLimit', 'value'] as $field) {
+        foreach (['nonce', 'gasPrice', 'gasLimit'] as $field) {
             if (empty($txData[$field])) {
                 throw new \RuntimeException("Field {$field} is required");
             }
