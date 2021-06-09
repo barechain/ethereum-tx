@@ -8,4 +8,6 @@ $rawTx = '0xf86a188522ecb25c0082520894937af0972d40da28ee3f61200c8904b47b8185be87
 $tx = \Barechain\EthereumTx\Transaction::fromSerializedTx($rawTx);
 
 // tx fields, tx hash and sender address
-var_dump($tx->toArray(), $tx->hash(true), $tx->getSenderAddress());
+var_dump($tx->toArray());
+var_dump($tx->hash());
+var_dump($tx->getSenderAddress());

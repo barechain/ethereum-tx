@@ -16,7 +16,7 @@ class Transaction
     private string $gasLimit;
     private ?string $to;
     private string $value;
-    private string $data;
+    private ?string $data;
     private ?string $v;
     private ?string $r;
     private ?string $s;
@@ -85,29 +85,14 @@ class Transaction
     /**
      * Get tx hash
      *
-     * @param bool $signed
      * @return string
      */
-    public function hash(bool $signed = false): string
+    public function hash(): string
     {
-        $txData = $this->toArray();
+        $serializedTx = $this->serialize();
+        $hash = $this->utils->sha3(hex2bin($serializedTx));
 
-        $txData['r'] = $this->utils->append0xPrefix(gmp_strval($txData['r'], 16));
-        $txData['s'] = $this->utils->append0xPrefix(gmp_strval($txData['s'], 16));
-
-        if (!$signed) {
-            unset($txData['v'], $txData['r'], $txData['s']);
-
-            if ($this->signedTxImplementsEIP155()) {
-                $txData['v'] = $this->chainId;
-                $txData['r'] = '';
-                $txData['s'] = '';
-            }
-        }
-
-        $serializedTx = $this->rlp->encode($txData)->__toString();
-
-        return $this->utils->sha3(hex2bin($serializedTx));
+        return $this->utils->append0xPrefix($hash);
     }
 
     /**
@@ -117,7 +102,7 @@ class Transaction
      */
     public function __toString(): string
     {
-        return $this->hash($this->isSigned());
+        return $this->hash();
     }
 
     /**
@@ -137,16 +122,7 @@ class Transaction
      */
     public function serialize(): string
     {
-        $txData = $this->toArray();
-
-        $txData['r'] = $this->utils->append0xPrefix(gmp_strval($txData['r'], 16));
-        $txData['s'] = $this->utils->append0xPrefix(gmp_strval($txData['s'], 16));
-
-        if (!$this->isSigned()) {
-            unset($txData['v'], $txData['r'], $txData['s']);
-        }
-
-        return $this->rlp->encode($txData)->__toString();
+        return $this->rlp->encode($this->raw())->__toString();
     }
 
     /**
@@ -157,7 +133,7 @@ class Transaction
      */
     public function sign(string $privateKey): string
     {
-        $signature = $this->utils->ecSign($privateKey, $this->hash());
+        $signature = $this->utils->ecSign($privateKey, $this->getMessageToSign());
 
         unset($this->v, $this->r, $this->s);
 
@@ -214,22 +190,20 @@ class Transaction
      */
     private function setupFields(array $txData): void
     {
-        $this->nonce = $this->utils->append0xPrefix($txData['nonce']);
-        $this->gasPrice = $this->utils->append0xPrefix($txData['gasPrice']);
-        $this->gasLimit = $this->utils->append0xPrefix($txData['gasLimit']);
-        $this->to = !empty($txData['to']) ? $this->utils->append0xPrefix($txData['to']) : '';
+        $this->nonce = empty($txData['nonce']) ? '0x' : $this->utils->append0xPrefix($txData['nonce']);
+        $this->gasPrice = empty($txData['gasPrice']) ? '0x' : $this->utils->append0xPrefix($txData['gasPrice']);
+        $this->gasLimit = empty($txData['gasLimit']) ? '0x' : $this->utils->append0xPrefix($txData['gasLimit']);
+        $this->to = empty($txData['to']) ? null : $this->utils->append0xPrefix($txData['to']);
+        $this->value = empty($txData['value']) ? '0x' : $this->utils->append0xPrefix($txData['value']);
+        $this->data = empty($txData['data']) ? null : $this->utils->append0xPrefix($txData['data']);
 
-        $this->value = !empty($txData['value']) ? $this->utils->append0xPrefix($txData['value']) : '';
+        $this->v = empty($txData['v']) ? null : $this->utils->append0xPrefix($txData['v']);
 
-        $this->data = !empty($txData['data']) ? $this->utils->append0xPrefix($txData['data']) : '';
+        $this->r = empty($txData['r']) ?
+            null : $this->utils->append0xPrefix($this->utils->zeroLeftPad($txData['r'], 64));
 
-        $this->v = !empty($txData['v']) ? $this->utils->append0xPrefix($txData['v']) : '';
-
-        $this->r = !empty($txData['r']) ?
-            $this->utils->append0xPrefix($this->utils->zeroLeftPad($txData['r'], 64)) : '';
-
-        $this->s = !empty($txData['s']) ?
-            $this->utils->append0xPrefix($this->utils->zeroLeftPad($txData['s'], 64)) : '';
+        $this->s = empty($txData['s']) ?
+            null : $this->utils->append0xPrefix($this->utils->zeroLeftPad($txData['s'], 64));
     }
 
     /**
@@ -239,11 +213,51 @@ class Transaction
      */
     private function validateRequired(array $txData): void
     {
-        foreach (['nonce', 'gasPrice', 'gasLimit'] as $field) {
-            if (empty($txData[$field])) {
+        foreach (['nonce', 'gasPrice', 'gasLimit', 'to', 'value'] as $field) {
+            if (!isset($txData[$field])) {
                 throw new \RuntimeException("Field {$field} is required");
             }
         }
+    }
+
+    /**
+     * Get raw tx fields
+     *
+     * @return array
+     */
+    private function raw(): array
+    {
+        return [
+            ($this->nonce === '0x') ? null : $this->nonce,
+            ($this->gasPrice === '0x') ? null : $this->gasPrice,
+            ($this->gasLimit === '0x') ? null : $this->gasLimit,
+            $this->to,
+            ($this->value === '0x') ? null : $this->value,
+            $this->data,
+            $this->v,
+            empty($this->r) ? null : $this->utils->append0xPrefix(gmp_strval($this->r, 16)),
+            empty($this->s) ? null : $this->utils->append0xPrefix(gmp_strval($this->s, 16))
+        ];
+    }
+
+    /**
+     * Returns the serialized unsigned tx
+     *
+     * @return string
+     */
+    private function getMessageToSign(): string
+    {
+        $message = array_slice($this->raw(), 0, 6);
+
+        if ($this->signedTxImplementsEIP155()) {
+            $message[] = $this->chainId;
+            $message[] = null;
+            $message[] = null;
+        }
+
+        $serializedMessage = $this->rlp->encode($message)->__toString();
+
+        return $this->utils->sha3(hex2bin($serializedMessage));
     }
 
     /**
@@ -281,7 +295,7 @@ class Transaction
 
         try {
             return $this->utils->recoverPublicKey(
-                $this->hash(),
+                $this->getMessageToSign(),
                 $this->r,
                 $this->s,
                 $this->calculateSigRecovery()
