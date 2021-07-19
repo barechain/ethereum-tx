@@ -249,7 +249,7 @@ class Transaction
     {
         $message = array_slice($this->raw(), 0, 6);
 
-        if ($this->signedTxImplementsEIP155()) {
+        if ($this->implementsEIP155()) {
             $message[] = $this->chainId;
             $message[] = null;
             $message[] = null;
@@ -261,14 +261,14 @@ class Transaction
     }
 
     /**
-     * Check if raw tx is signed and implement EIP155
+     * Check if raw tx is implement EIP155
      *
      * @return bool
      */
-    private function signedTxImplementsEIP155(): bool
+    private function implementsEIP155(): bool
     {
         if (!$this->isSigned()) {
-            throw new \RuntimeException('This transaction is not signed');
+            return true;
         }
 
         $v = hexdec($this->v);
@@ -313,6 +313,6 @@ class Transaction
     private function calculateSigRecovery(): int
     {
         $v = hexdec($this->v);
-        return $this->signedTxImplementsEIP155() ? $v - (2 * $this->chainId + 35) : ($v - 27);
+        return $this->implementsEIP155() ? $v - (2 * $this->chainId + 35) : ($v - 27);
     }
 }
