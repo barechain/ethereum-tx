@@ -210,12 +210,12 @@ class Transaction
 
         $this->data = $this->utils->isEmptyHex($txData['data']) ? null : $this->utils->append0xPrefix($txData['data']);
 
-        $this->v = $this->utils->isEmptyHex($txData['v']) ? null : $this->utils->append0xPrefix($txData['v']);
+        $this->v = $this->utils->isEmptyHex($txData['v'] ?? '') ? null : $this->utils->append0xPrefix($txData['v']);
 
-        $this->r = $this->utils->isEmptyHex($txData['r']) ?
+        $this->r = $this->utils->isEmptyHex($txData['r'] ?? '') ?
             null : $this->utils->append0xPrefix($this->utils->zeroLeftPad($txData['r'], 64));
 
-        $this->s = $this->utils->isEmptyHex($txData['s']) ?
+        $this->s = $this->utils->isEmptyHex($txData['s'] ?? '') ?
             null : $this->utils->append0xPrefix($this->utils->zeroLeftPad($txData['s'], 64));
     }
 
