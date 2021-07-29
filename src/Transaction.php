@@ -37,7 +37,7 @@ class Transaction
         $this->initDependencies();
 
         $this->chainId = $chainId;
-        $this->validateRequired($txData);
+        $this->validate($txData);
         $this->setupFields($txData);
     }
 
@@ -190,34 +190,58 @@ class Transaction
      */
     private function setupFields(array $txData): void
     {
-        $this->nonce = empty($txData['nonce']) ? '0x' : $this->utils->append0xPrefix($txData['nonce']);
-        $this->gasPrice = empty($txData['gasPrice']) ? '0x' : $this->utils->append0xPrefix($txData['gasPrice']);
-        $this->gasLimit = empty($txData['gasLimit']) ? '0x' : $this->utils->append0xPrefix($txData['gasLimit']);
-        $this->to = empty($txData['to']) ? null : $this->utils->append0xPrefix($txData['to']);
-        $this->value = gmp_strval($txData['value'] ?: 0) === '0' ?
-            '0x' : $this->utils->append0xPrefix($txData['value']);
+        $this->nonce = $this->utils->append0xPrefix(
+            $this->utils->isEmptyHex($txData['nonce']) ? '' : $txData['nonce']
+        );
 
-        $this->data = empty($txData['data']) ? null : $this->utils->append0xPrefix($txData['data']);
+        $this->gasPrice = $this->utils->append0xPrefix(
+            $this->utils->isEmptyHex($txData['gasPrice']) ? '' : $txData['gasPrice']
+        );
 
-        $this->v = empty($txData['v']) ? null : $this->utils->append0xPrefix($txData['v']);
+        $this->gasLimit = $this->utils->append0xPrefix(
+            $this->utils->isEmptyHex($txData['gasLimit']) ? '' : $txData['gasLimit']
+        );
 
-        $this->r = empty($txData['r']) ?
+        $this->to = $this->utils->isEmptyHex($txData['to']) ? null : $this->utils->append0xPrefix($txData['to']);
+
+        $this->value = $this->utils->append0xPrefix(
+            $this->utils->isEmptyHex($txData['value']) ? '' : $txData['value']
+        );
+
+        $this->data = $this->utils->isEmptyHex($txData['data']) ? null : $this->utils->append0xPrefix($txData['data']);
+
+        $this->v = $this->utils->isEmptyHex($txData['v']) ? null : $this->utils->append0xPrefix($txData['v']);
+
+        $this->r = $this->utils->isEmptyHex($txData['r']) ?
             null : $this->utils->append0xPrefix($this->utils->zeroLeftPad($txData['r'], 64));
 
-        $this->s = empty($txData['s']) ?
+        $this->s = $this->utils->isEmptyHex($txData['s']) ?
             null : $this->utils->append0xPrefix($this->utils->zeroLeftPad($txData['s'], 64));
     }
 
     /**
-     * Validate required fields
+     * Validate fields
      *
      * @param array $txData
      */
-    private function validateRequired(array $txData): void
+    private function validate(array $txData): void
     {
-        foreach (['nonce', 'gasPrice', 'gasLimit', 'to', 'value'] as $field) {
+        $required = array_slice(self::TX_FIELDS, 0, 6);
+
+        foreach (self::TX_FIELDS as $field) {
             if (!isset($txData[$field])) {
-                throw new \RuntimeException("Field {$field} is required");
+                if (in_array($field, $required)) {
+                    throw new \RuntimeException("Field '{$field}' is required");
+                }
+
+                continue;
+            }
+
+            if (
+                !is_string($txData[$field])
+                || (strlen($txData[$field]) > 0 && !$this->utils->isHex($txData[$field]))
+            ) {
+                throw new \RuntimeException("Field '{$field}' must be a hex string");
             }
         }
     }
