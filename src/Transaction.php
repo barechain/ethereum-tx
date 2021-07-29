@@ -194,7 +194,7 @@ class Transaction
         $this->gasPrice = empty($txData['gasPrice']) ? '0x' : $this->utils->append0xPrefix($txData['gasPrice']);
         $this->gasLimit = empty($txData['gasLimit']) ? '0x' : $this->utils->append0xPrefix($txData['gasLimit']);
         $this->to = empty($txData['to']) ? null : $this->utils->append0xPrefix($txData['to']);
-        $this->value = empty(gmp_strval($txData['value'] ?? 0, 16)) ?
+        $this->value = gmp_strval($txData['value'] ?: 0) === '0' ?
             '0x' : $this->utils->append0xPrefix($txData['value']);
 
         $this->data = empty($txData['data']) ? null : $this->utils->append0xPrefix($txData['data']);
