@@ -80,7 +80,7 @@ class Utils
      */
     public function isEmptyHex(string $value): bool
     {
-        return gmp_strval($this->append0xPrefix($value)) === '0';
+        return gmp_strval($value) === '0';
     }
 
     /**

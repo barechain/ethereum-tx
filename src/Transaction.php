@@ -37,7 +37,9 @@ class Transaction
         $this->initDependencies();
 
         $this->chainId = $chainId;
+
         $this->validate($txData);
+        $txData = $this->prepareFields($txData);
         $this->setupFields($txData);
     }
 
@@ -184,66 +186,74 @@ class Transaction
     }
 
     /**
-     * Setup fields
-     *
-     * @param array $txData
-     */
-    private function setupFields(array $txData): void
-    {
-        $this->nonce = $this->utils->append0xPrefix(
-            $this->utils->isEmptyHex($txData['nonce']) ? '' : $txData['nonce']
-        );
-
-        $this->gasPrice = $this->utils->append0xPrefix(
-            $this->utils->isEmptyHex($txData['gasPrice']) ? '' : $txData['gasPrice']
-        );
-
-        $this->gasLimit = $this->utils->append0xPrefix(
-            $this->utils->isEmptyHex($txData['gasLimit']) ? '' : $txData['gasLimit']
-        );
-
-        $this->to = $this->utils->isEmptyHex($txData['to']) ? null : $this->utils->append0xPrefix($txData['to']);
-
-        $this->value = $this->utils->append0xPrefix(
-            $this->utils->isEmptyHex($txData['value']) ? '' : $txData['value']
-        );
-
-        $this->data = $this->utils->isEmptyHex($txData['data']) ? null : $this->utils->append0xPrefix($txData['data']);
-
-        $this->v = $this->utils->isEmptyHex($txData['v'] ?? '') ? null : $this->utils->append0xPrefix($txData['v']);
-
-        $this->r = $this->utils->isEmptyHex($txData['r'] ?? '') ?
-            null : $this->utils->append0xPrefix($this->utils->zeroLeftPad($txData['r'], 64));
-
-        $this->s = $this->utils->isEmptyHex($txData['s'] ?? '') ?
-            null : $this->utils->append0xPrefix($this->utils->zeroLeftPad($txData['s'], 64));
-    }
-
-    /**
      * Validate fields
      *
      * @param array $txData
      */
     private function validate(array $txData): void
     {
-        $required = array_slice(self::TX_FIELDS, 0, 6);
+        $required = array_slice(self::TX_FIELDS, 0, 5);
 
         foreach (self::TX_FIELDS as $field) {
-            if (!isset($txData[$field])) {
-                if (in_array($field, $required)) {
-                    throw new \RuntimeException("Field '{$field}' is required");
-                }
+            if (!isset($txData[$field]) && in_array($field, $required)) {
+                throw new \RuntimeException("Field '{$field}' is required");
+            }
 
+            if (!isset($txData[$field])) {
                 continue;
             }
 
-            if (
-                !is_string($txData[$field])
-                || (strlen($txData[$field]) > 0 && !$this->utils->isHex($txData[$field]))
-            ) {
-                throw new \RuntimeException("Field '{$field}' must be a hex string");
+            $value = $txData[$field];
+
+            if (!is_string($value)) {
+                throw new \RuntimeException("Field '{$field}' must be a string");
+            }
+
+            if (strlen($value) > 0 && $value !== '0x' && !$this->utils->isHex($value)) {
+                throw new \RuntimeException("Field '{$field}' must be a hex");
             }
         }
+    }
+
+    /**
+     * Prepare fields
+     *
+     * @param array $txData
+     * @return array
+     */
+    private function prepareFields(array $txData): array
+    {
+        $fields = [];
+
+        foreach (self::TX_FIELDS as $field) {
+            $value = $txData[$field] ?? '';
+
+            if (in_array($field, ['r', 's'])) {
+                $value = $this->utils->zeroLeftPad($value, 64);
+            }
+
+            $fields[$field] = $this->utils->append0xPrefix($value);
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Setup fields
+     *
+     * @param array $txData
+     */
+    private function setupFields(array $txData): void
+    {
+        $this->nonce = $this->utils->isEmptyHex($txData['nonce']) ? '0x' : $txData['nonce'];
+        $this->gasPrice = $this->utils->isEmptyHex($txData['gasPrice']) ? '0x' : $txData['gasPrice'];
+        $this->gasLimit = $this->utils->isEmptyHex($txData['gasLimit']) ? '0x' : $txData['gasLimit'];
+        $this->to = $this->utils->isEmptyHex($txData['to']) ? null : $txData['to'];
+        $this->value = $this->utils->isEmptyHex($txData['value']) ? '0x' : $txData['value'];
+        $this->data = $this->utils->isEmptyHex($txData['data']) ? null : $txData['data'];
+        $this->v = $this->utils->isEmptyHex($txData['v']) ? null : $txData['v'];
+        $this->r = $this->utils->isEmptyHex($txData['r']) ? null : $txData['r'];
+        $this->s = $this->utils->isEmptyHex($txData['s']) ? null : $txData['s'];
     }
 
     /**
