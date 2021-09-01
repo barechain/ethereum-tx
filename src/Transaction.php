@@ -173,7 +173,7 @@ class Transaction
 
         $txData = array_combine(self::TX_FIELDS, array_pad($stringValues, 9, ''));
 
-        return new self($txData);
+        return new self($txData, $chainId);
     }
 
     /**
