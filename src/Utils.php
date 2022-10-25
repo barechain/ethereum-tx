@@ -69,7 +69,7 @@ class Utils
             return $value;
         }
 
-        return empty($value) ? '0x' . $value : '0x0';
+        return empty($value) ? '0x0' : '0x' . $value;
     }
 
     /**
