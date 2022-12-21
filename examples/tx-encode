@@ -3,6 +3,13 @@
 
 require dirname(__DIR__) .'/vendor/autoload.php';
 
+function dump(...$vars)
+{
+    foreach ($vars as $v) {
+        \Symfony\Component\VarDumper\VarDumper::dump($v);
+    }
+}
+
 $parameters = [
     'nonce' => '0x18',
     'gasPrice' => '0x22ecb25c00',
@@ -17,4 +24,4 @@ $parameters = [
 
 $tx = new \Barechain\EthereumTx\Transaction($parameters);
 
-var_dump($tx->serialize());
+dump($tx->toArray(), $tx->serialize());

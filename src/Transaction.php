@@ -139,8 +139,8 @@ class Transaction
 
         unset($this->v, $this->r, $this->s);
 
-        $this->r = $this->utils->append0xPrefix($signature->r->toString(16));
-        $this->s = $this->utils->append0xPrefix($signature->s->toString(16));
+        $this->r = $this->utils->append0xPrefix($this->utils->zeroLeftPad($signature->r->toString(16), 64));
+        $this->s = $this->utils->append0xPrefix($this->utils->zeroLeftPad($signature->s->toString(16), 64));
 
         $v = $signature->recoveryParam + $this->chainId * 2;
         $this->v = $this->utils->append0xPrefix(dechex($v));
@@ -228,7 +228,7 @@ class Transaction
         foreach (self::TX_FIELDS as $field) {
             $value = $txData[$field] ?? '';
 
-            if (in_array($field, ['r', 's'])) {
+            if (strlen($value) > 0 && ($field === 'r' || $field ===  's')) {
                 $value = $this->utils->zeroLeftPad($value, 64);
             }
 
@@ -245,11 +245,11 @@ class Transaction
      */
     private function setupFields(array $txData): void
     {
-        $this->nonce = $this->utils->isEmptyHex($txData['nonce']) ? '0x' : $txData['nonce'];
-        $this->gasPrice = $this->utils->isEmptyHex($txData['gasPrice']) ? '0x' : $txData['gasPrice'];
-        $this->gasLimit = $this->utils->isEmptyHex($txData['gasLimit']) ? '0x' : $txData['gasLimit'];
+        $this->nonce = $this->utils->isEmptyHex($txData['nonce']) ? '0x0' : $txData['nonce'];
+        $this->gasPrice = $this->utils->isEmptyHex($txData['gasPrice']) ? '0x0' : $txData['gasPrice'];
+        $this->gasLimit = $this->utils->isEmptyHex($txData['gasLimit']) ? '0x0' : $txData['gasLimit'];
         $this->to = $this->utils->isEmptyHex($txData['to']) ? null : $txData['to'];
-        $this->value = $this->utils->isEmptyHex($txData['value']) ? '0x' : $txData['value'];
+        $this->value = $this->utils->isEmptyHex($txData['value']) ? '0x0' : $txData['value'];
         $this->data = $this->utils->isEmptyHex($txData['data']) ? null : $txData['data'];
         $this->v = $this->utils->isEmptyHex($txData['v']) ? null : $txData['v'];
         $this->r = $this->utils->isEmptyHex($txData['r']) ? null : $txData['r'];
@@ -264,11 +264,11 @@ class Transaction
     private function raw(): array
     {
         return [
-            ($this->nonce === '0x') ? null : $this->nonce,
-            ($this->gasPrice === '0x') ? null : $this->gasPrice,
-            ($this->gasLimit === '0x') ? null : $this->gasLimit,
+            ($this->nonce === '0x0') ? null : $this->nonce,
+            ($this->gasPrice === '0x0') ? null : $this->gasPrice,
+            ($this->gasLimit === '0x0') ? null : $this->gasLimit,
             $this->to,
-            ($this->value === '0x') ? null : $this->value,
+            ($this->value === '0x0') ? null : $this->value,
             $this->data,
             $this->v,
             empty($this->r) ? null : $this->utils->append0xPrefix(gmp_strval($this->r, 16)),
