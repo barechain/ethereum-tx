@@ -1,4 +1,4 @@
-FROM php:7.4-cli-alpine
+FROM php:8.0-cli-alpine
 
 RUN set -xe \
     && apk add --no-cache gmp \
@@ -28,7 +28,7 @@ RUN set -xe \
     && chown www-data:www-data /srv/app \
     && chmod 755 /srv/app
 
-ENV PS1='\[\033[1;36m\][\u@\h] \[\033[1;34m\]\w\[\033[0;35m\] \[\033[1;36m\]$ \[\033[0m\]'
+ENV PS1='\[\033[1;36m\][\u@\h] \[\033[1;34m\]\w\[\033[0;35m\] \[\033[1;36m\]\$ \[\033[0m\]'
 
 WORKDIR /srv/app
 USER www-data
